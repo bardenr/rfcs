@@ -1023,8 +1023,21 @@ Each selected directory is registered as an ordinary, independently
 addressable skill. Its version retains the repository URL and ref, with
 `subpath` set to that skill's directory. A new name creates a skill and its
 first version. An exact source, ref, subpath, and digest match returns the
-existing version, making retries idempotent; otherwise, a skill previously
-imported from the same repository path gets a new version.
+highest matching non-deleted version, making retries idempotent; otherwise,
+a skill previously imported from the same repository path gets a new version.
+Status is not part of the match: an existing `active`, `draft`, or `deprecated`
+version is returned unchanged, even when its status differs from the request.
+Reusing a version preserves its audit fields and content metadata.
+
+Deleted versions are never reused or revived. If no non-deleted match exists,
+allocate the next version number including deleted history and use the requested
+status. For example, importing after deleted version 1 creates version 2;
+repeating the import reuses version 2. Hard-deleting the parent removes its
+history, so subsequent registration starts at version 1.
+
+Exact-match reuse compares the normalized `source`, `ref`, and `subpath`
+case-sensitively, independently of database collation, using the same source
+normalization as standalone skill registration.
 
 This operation is distinct from `mlflow agent-plugins import`, which imports a
 package, creates an agent plugin version, and registers discovered skills as
