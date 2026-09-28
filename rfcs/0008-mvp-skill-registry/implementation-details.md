@@ -2245,7 +2245,7 @@ identifiers normally come from path parameters. The Skill and Agent Plugin
 or reuse the parent and create a version in one operation. Agent Plugin identity
 is extracted from or checked against `plugin_json`. Skill parent read responses
 (`SkillResponse`) include an `allowed_actions` field populated by auth-layer
-response filters, following the MCP server registry pattern. See
+response filters, following the MCP Server Registry pattern. See
 `mlflow.server.auth.FASTAPI_ENDPOINT_RESPONSE_FILTERS`.
 
 ```python
