@@ -2243,7 +2243,10 @@ initial status; later update requests contain only mutable fields. Resource
 identifiers normally come from path parameters. The Skill and Agent Plugin
 `POST /register` endpoints accept identity inputs in the body so they can create
 or reuse the parent and create a version in one operation. Agent Plugin identity
-is extracted from or checked against `plugin_json`.
+is extracted from or checked against `plugin_json`. Skill parent read responses
+(`SkillResponse`) include an `allowed_actions` field populated by auth-layer
+response filters, following the MCP server registry pattern. See
+`mlflow.server.auth.FASTAPI_ENDPOINT_RESPONSE_FILTERS`.
 
 ```python
 from typing import Any
@@ -2415,6 +2418,7 @@ class SkillResponse(BaseModel):
     last_updated_by: str | None = None
     creation_timestamp: int | None = None
     last_updated_timestamp: int | None = None
+    allowed_actions: list[Literal["USE", "UPDATE", "DELETE", "MANAGE"]] = Field(default_factory=list)
 
 
 class AgentPluginVersionResponse(BaseModel):
