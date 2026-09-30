@@ -367,7 +367,7 @@ infrastructure; registry-specific trace linkage (SKILL spans,
    descriptions, and latest versions.
    **UI path:** Scan the card-based list view. Each card shows the
    skill icon (the default skill glyph when the skill has no icons),
-   name, description, latest version badgk, and tags.
+   name, description, latest version badge, and tags.
 3. Get details on a promising result:
    ```bash
    mlflow skills get skills:/code-review
