@@ -869,9 +869,9 @@ an explicit `cascade` option that governs them:
   rather than resolved through its membership: for an externally sourced
   package the member still resolves against the external repository or image,
   and for an MLflow-stored package the member carries an explicit pointer to
-  the package artifact tree, which is retained until the last skill referencing
-  it is gone. Removing the membership rows therefore leaves no member pointing
-  at absent or unlocatable content.
+  the package artifact tree, which Skill deletion preserves even after the last
+  reference is removed. Removing the membership rows therefore leaves no member
+  pointing at absent or unlocatable content.
   The user can then hard-delete individual member skills afterward if desired.
 - **With cascade,** the plugin and its member skills are hard-deleted
   together, subject to the referential-integrity check below.

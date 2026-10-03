@@ -84,9 +84,9 @@ version number, so a new version always writes to a fresh path even when it take
 a number a prior incarnation once held, and two concurrent registrations never
 write the same path. A hard delete reclaims the stored content it owns: because
 artifact storage is not transactional with the registry database, the server
-captures the artifact paths recorded on the versions being removed, commits the
-row deletion, and then deletes those paths best-effort, keeping a shared package
-tree until its last referencing version is gone (see Deletion semantics).
+captures the owned upload paths recorded on the versions being removed, commits
+the row deletion, and then deletes those paths best-effort. Referenced package
+trees are excluded (see Deletion semantics).
 Committing the row deletion before touching content ensures a rolled-back
 deletion never leaves a restored row pointing at missing bytes; if the
 post-commit cleanup instead fails, the orphaned bytes are the same small,
@@ -95,11 +95,11 @@ the versions being removed
 rather than scanning the store for unreferenced paths, it never deletes a whole
 identity prefix, never touches a recreated skill's fresh-token paths, and never
 races an in-flight upload whose row has not yet committed (that path is recorded
-on no committed version, so the delete never considers it). The only content a
-delete leaves behind is bytes from a crashed upload that never committed a row;
-those pre-commit paths are intentionally retained, because no committed row
-distinguishes them from an upload still in progress, and the residue is a small,
-rare leak that never affects correctness.
+on no committed version, so the delete never considers it). Bytes from a crashed
+upload that never committed a row are also left behind; those pre-commit paths
+are intentionally retained, because no committed row distinguishes them from an
+upload still in progress, and the residue is a small, rare leak that never
+affects correctness.
 Remote-pointer registrations (`git`/`oci`/`zip`) store no content in the registry
 and need none of this.
 
@@ -403,18 +403,13 @@ used by the Model Registry and RFC-0004:
     different live plugin that shares a member.
     Externally-sourced skills (git/oci/zip) are deleted only as registry
     entities; their upstream content is untouched.
-  MLflow-managed package content (`source_type="mlflow"`) is refcounted by
-  the skill versions whose persisted `source` points into it and is retained
-  until the last referencing skill version is gone, so a non-cascade delete
-  that leaves members also leaves the stored package tree those members pull
-  from. When a hard delete removes a skill (or agent plugin) version, the delete
-  operation reclaims the artifact path recorded on that version: the server
-  commits the row deletion, then deletes the recorded path best-effort, since
-  artifact storage is not transactional with the registry database (see Version
-  ordering). A standalone upload's path is unique to its one version and is
-  reclaimed with it, while a shared package tree is reclaimed only once its last
-  referencing version is gone (the refcount above). A delete thus reclaims only
-  paths owned by the versions it removes, never a whole identity prefix.
+  Skill hard deletion cleans up only owned standalone uploads: an `mlflow`
+  source with no `subpath`, at the skill's upload prefix plus its unique token.
+  The server commits the row deletion before deleting those paths best-effort.
+  Referenced package trees are never scheduled for cleanup by Skill deletion,
+  even after the last reference is removed. A non-cascade plugin delete also
+  preserves the package content needed by surviving members. Cleanup never
+  deletes a whole identity prefix.
 - Version delete operations (`delete_skill_version` and
   `delete_agent_plugin_version`) are soft deletes. They set
   `status='deleted'` when allowed by the lifecycle transition rules,
@@ -795,14 +790,10 @@ persisted on the skill version itself at import time, so it is **not**
 resolved from the skill's membership:
 even after the containing plugin is deleted, the surviving skill still
 carries an explicit pointer to the retained tree. Pulling such a skill
-fetches only the content under `subpath` from that package tree. Because
-several member skills can point into the same stored tree,
-the tree is refcounted by the skill versions whose `source` names it and is
-retained until the last such skill version is gone. A non-cascade
-`delete_agent_plugin` that leaves members therefore also leaves the stored
-tree those members pull from, and each surviving member keeps its own
-self-contained pointer to it; the tree is reclaimed only when no skill
-version still references it.
+fetches only the content under `subpath` from that package tree. These pointers
+do not give member skills ownership of the tree. Deleting a plugin without
+cascade preserves it for surviving members; later Skill deletion leaves it
+untouched even after the last reference is removed (see Deletion semantics).
 
 **Client-side upload flow.** When `source` is a local path (detected
 by the absence of a `://` scheme), the skill content is stored in MLflow
