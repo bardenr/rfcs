@@ -1554,9 +1554,11 @@ nothing to the registry.)
 ### High-level workflow functions (`mlflow.genai`)
 
 High-level registration and bulk import require each skill to have a root
-`SKILL.md` file. Nested `SKILL.md` files and directories named `SKILL.md` are
-rejected. Bulk import checks all discovered skill roots before name filtering,
-within the requested discovery subpath or repository root.
+`SKILL.md` regular file. Nested manifests remain supporting content and are not
+inspected or registered separately. Bulk discovery stops descending at each
+skill root, even if that skill is filtered out. Discovered roots are validated
+before name filtering. Directories named `SKILL.md` encountered during discovery
+are rejected; those beneath an already-discovered skill are supporting content.
 
 ```python
 from dataclasses import dataclass
@@ -1661,8 +1663,9 @@ def import_skills(
     status: str = "active",
 ) -> list[SkillVersion]:
     """Fetch a Git repository and recursively discover skills beneath the
-    GitSource subpath, or the repository root when no subpath is set. If
-    skill_names is provided, select only skills with those declared names.
+    GitSource subpath, or the repository root when no subpath is set.
+    Stop descending at each skill root, even if it is filtered out.
+    If skill_names is provided, select only skills with those declared names.
     Validate all selected skills, compute their digests, and submit the prepared
     definitions to the transactional, idempotent bulk-registration endpoint.
     Status accepts active or draft and applies to newly created versions.
