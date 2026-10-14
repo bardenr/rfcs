@@ -1277,17 +1277,58 @@ independently of the plugin (see below).
 | Permission | Operations |
 |---|---|
 | `READ` | Search entities (including finding agent plugins by member), get versions, resolve aliases, list tags |
-| `EDIT` | Create entities, create versions, set tags, update presentation metadata (description, icons), status transitions (activate, deprecate), set aliases. Mapped to `can_update` in MLflow's permission framework. |
-| `MANAGE` | Delete aliases, delete tags, soft-delete versions, hard-delete entities, manage permissions. Mapped to `can_delete` in MLflow's permission framework. |
+| `EDIT` | Create AgentPlugins, create versions, set tags, delete parent Skill tags, update presentation metadata (description, icons), status transitions (activate, deprecate), set aliases. Creating a Skill parent uses the workspace creation check below. Mapped to `can_update` in MLflow's permission framework. |
+| `MANAGE` | Delete aliases and tags (including Skill version tags), soft-delete versions, hard-delete entities, manage permissions. Mapped to `can_delete` in MLflow's permission framework. |
 
-This follows the same pattern as the model registry and MCP Server
-Registry (RFC-0004).
+The Skill parent-tag and version-tag deletion levels follow the corresponding
+model registry operations. This update does not change AgentPlugin permissions.
+The standalone Skill behavior below reflects the merged
+[mlflow/mlflow#25988](https://github.com/mlflow/mlflow/pull/25988).
+Skill grants accept READ, EDIT, MANAGE, or explicit DENY; USE is a workspace
+permission, not a Skill permission. Existing administrator bypasses apply.
+
+- **Skill authorization uses the qualified identity.** Skill names can repeat
+  across organizations, so grants and search filtering identify a skill by
+  `(organization, name)` within the request workspace. Grant keys are `name`
+  for the default organization and `@organization/name` for named organizations.
+  Search applies the caller's readable-skill filter
+  before pagination, intersected with any public qualified-identity selector.
+  Each page checks current permissions; permission changes do not invalidate
+  page tokens. See [pagination and filtering](implementation-details.md#pagination-and-filtering)
+  for selector encoding and best-effort offset behavior.
+  Reading MLflow-managed skill artifacts requires READ on
+  the owning Skill; malformed paths within the skill artifact namespace cannot
+  fall back to broader workspace or default artifact access.
+- **Registration checks the parent operation.** Creating a new Skill requires
+  workspace creation permission and no matching Skill DENY. With workspaces
+  enabled, the creation check requires workspace USE or MANAGE, subject to
+  the configured default-workspace access behavior; a Skill EDIT or MANAGE
+  grant alone does not authorize creation. Adding a version to an existing
+  Skill requires EDIT on that Skill. The SQL registration transaction checks
+  the parent-existence state recorded during authorization. A mismatch returns
+  HTTP 409 so the caller can retry; a bulk mismatch rolls back the whole batch.
+  This check does not detect an existing Skill being deleted and recreated
+  under the same name between authorization and the write. That residual race
+  is accepted in this implementation; no generation check is performed.
+- **Skill tag and deletion permissions.** EDIT permits deleting a parent Skill
+  tag, while deleting a Skill version tag requires MANAGE. Soft-deleting a
+  version requires MANAGE whether requested through DELETE or a status update.
 - **Creator gets MANAGE.** When a user creates a standalone skill or an
   agent plugin, they automatically receive MANAGE permission, following
   the MLflow model registry pattern. Importing a packaged plugin creates
   the plugin and its member skills in the same transaction, so the
   importer receives MANAGE on the plugin and on each newly created member
   skill.
+- **Standalone Skill grants use separate auth transactions.** After successful
+  creation, an auth response hook grants the creator MANAGE. The tracking
+  commit and creator grant are not atomic; a grant failure is logged and does
+  not roll back the created Skill. After successful parent deletion, including
+  administrator deletion, an auth response hook removes that Skill's grants
+  in the request workspace. Cleanup is best effort: failure is logged, the
+  deletion response stays successful, and dangling grants may apply to a later
+  Skill with the same identity. Atomic deletion/revocation and automatic
+  cleanup retries are not guaranteed. These limits are accepted to keep auth
+  transactions out of the tracking-store interface.
 - **Imported skills are ordinary skills.** A skill created by importing a
   packaged plugin has its own independent ACL, evaluated the same way as
   any other skill: reading it requires READ on the skill, creating a new
