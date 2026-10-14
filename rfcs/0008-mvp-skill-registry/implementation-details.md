@@ -2335,16 +2335,23 @@ from typing import Any
 from pydantic import BaseModel, ConfigDict, Field
 
 
+class SkillIconRequestPayload(BaseModel):
+    src: str
+    sizes: list[str] | None = None
+    mimeType: str | None = None
+    theme: str | None = None
+
+
 class CreateSkillRequest(BaseModel):
     name: str
     organization: str = ""
     description: str | None = None
-    icons: list[RegistryIcon] | None = None
+    icons: list[SkillIconRequestPayload] | None = None
 
 
 class UpdateSkillRequest(BaseModel):
     description: str | None = None
-    icons: list[RegistryIcon] | None = None
+    icons: list[SkillIconRequestPayload] | None = None
 
 
 class CreateSkillVersionRequest(BaseModel):
@@ -2386,12 +2393,12 @@ class CreateAgentPluginRequest(BaseModel):
     name: str
     organization: str = ""
     description: str | None = None
-    icons: list[RegistryIcon] | None = None
+    icons: list[SkillIconRequestPayload] | None = None
 
 
 class UpdateAgentPluginRequest(BaseModel):
     description: str | None = None
-    icons: list[RegistryIcon] | None = None
+    icons: list[SkillIconRequestPayload] | None = None
 
 
 class PluginJSONPayload(BaseModel):
