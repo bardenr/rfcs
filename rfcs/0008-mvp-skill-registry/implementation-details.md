@@ -2386,7 +2386,7 @@ class BulkRegisterSkillRequest(BaseModel):
 
 class BulkRegisterSkillsRequest(BaseModel):
     organization: str = ""
-    skills: list[BulkRegisterSkillRequest] = Field(min_length=1)
+    skills: list[BulkRegisterSkillRequest] = Field(min_length=1, max_length=500)
 
 
 class CreateAgentPluginRequest(BaseModel):
@@ -2490,10 +2490,18 @@ class SetTagRequest(BaseModel):
     value: str
 
 
+class SkillIconResponsePayload(BaseModel):
+    src: str
+    sizes: list[str] | None = None
+    mimeType: str | None = None
+    theme: str | None = None
+
+
 class SkillVersionResponse(BaseModel):
     name: str
     version: int
     organization: str = ""
+    workspace: str | None = None
     source_type: str | None = None
     source: str | None = None
     ref: str | None = None
@@ -2511,8 +2519,9 @@ class SkillVersionResponse(BaseModel):
 class SkillResponse(BaseModel):
     name: str
     organization: str = ""
+    workspace: str | None = None
     description: str | None = None
-    icons: list[RegistryIcon] | None = None
+    icons: list[SkillIconResponsePayload] | None = None
     status: str | None = None
     latest_version: int | None = None
     source_type: str | None = None

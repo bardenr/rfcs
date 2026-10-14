@@ -1016,7 +1016,8 @@ validation to fail rather than silently changing the requested scope. The
 client validates every selected skill and computes its content digest before
 sending a prepared batch to `POST /skills/bulk-register`. The endpoint invokes
 the store's `bulk_register_skills` operation, which registers the entire batch
-in one database transaction.
+in one database transaction. Each import is limited to 500 selected skills.
+Larger imports are rejected.
 
 Discovery stops descending at each skill root, even if that skill is filtered
 out. Nested manifests remain supporting content of the enclosing skill and are
